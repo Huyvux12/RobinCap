@@ -1,0 +1,11 @@
+bin/
+/capcut-tts-go
+*.exe
+*.mp3
+*.wav
+*.srt
+.env
+.env.*
+device.json
+*.log
+/tmp/

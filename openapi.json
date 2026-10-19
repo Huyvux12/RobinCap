@@ -1,0 +1,1542 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "CapCut TTS/STT API (Go)",
+  "version": "1.0.0",
+  "description": "Go port of github.com/K07VN/capcut-tts-api. Unofficial: calls CapCut's internal editor API as the CapCut desktop app. If the server has API_KEY set, send it as `X-API-Key`."
+ },
+ "components": {
+  "securitySchemes": {
+   "ApiKey": {
+    "type": "apiKey",
+    "in": "header",
+    "name": "X-API-Key"
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "error": {
+      "type": "string"
+     },
+     "status": {
+      "type": "integer"
+     }
+    }
+   },
+   "Voice": {
+    "type": "object",
+    "properties": {
+     "voice_type": {
+      "type": "string"
+     },
+     "display_name": {
+      "type": "string"
+     },
+     "resource_id": {
+      "type": "string"
+     },
+     "lang": {
+      "type": "string"
+     },
+     "lan": {
+      "type": "string"
+     },
+     "captured_at": {
+      "type": "string"
+     }
+    }
+   },
+   "TTSRequest": {
+    "type": "object",
+    "required": [
+     "text"
+    ],
+    "properties": {
+     "text": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      ],
+      "description": "One text, or a list rendered as segments of one task"
+     },
+     "voice": {
+      "type": "string",
+      "example": "BV421_vivn_streaming"
+     },
+     "resource_id": {
+      "type": "string"
+     },
+     "rate": {
+      "oneOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "example": 1.0
+     },
+     "wait": {
+      "type": "boolean",
+      "default": true,
+      "description": "false: return task_id/token immediately (202)"
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "mp3"
+      ],
+      "default": "json",
+      "description": "mp3 streams audio/mpeg bytes"
+     },
+     "no_cache": {
+      "type": "boolean",
+      "default": false
+     },
+     "timeout_sec": {
+      "type": "number",
+      "default": 60
+     }
+    }
+   },
+   "TTSSegment": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "speech_url": {
+      "type": "string"
+     },
+     "speech_vid": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "utterances": {
+      "nullable": true
+     },
+     "hit_cache": {
+      "type": "boolean"
+     },
+     "speaker_id": {
+      "type": "string"
+     },
+     "code": {
+      "type": "integer"
+     },
+     "msg": {
+      "type": "string"
+     }
+    }
+   },
+   "TTSResult": {
+    "type": "object",
+    "properties": {
+     "task_id": {
+      "type": "string"
+     },
+     "token": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "voice": {
+      "type": "string"
+     },
+     "resource_id": {
+      "type": "string"
+     },
+     "rate": {
+      "type": "string"
+     },
+     "speech_url": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "segments": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/TTSSegment"
+      }
+     },
+     "cached": {
+      "type": "boolean"
+     },
+     "elapsed_ms": {
+      "type": "integer"
+     }
+    }
+   },
+   "TaskCreated": {
+    "type": "object",
+    "properties": {
+     "task_id": {
+      "type": "string"
+     },
+     "token": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "query_url": {
+      "type": "string"
+     }
+    }
+   },
+   "BatchRequest": {
+    "type": "object",
+    "required": [
+     "texts"
+    ],
+    "properties": {
+     "texts": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "voice": {
+      "type": "string"
+     },
+     "resource_id": {
+      "type": "string"
+     },
+     "rate": {
+      "oneOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "concurrency": {
+      "type": "integer",
+      "description": "≤ server BATCH_CONCURRENCY"
+     },
+     "no_cache": {
+      "type": "boolean"
+     },
+     "timeout_sec": {
+      "type": "number"
+     }
+    }
+   },
+   "BatchItem": {
+    "type": "object",
+    "properties": {
+     "index": {
+      "type": "integer"
+     },
+     "text": {
+      "type": "string"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "error": {
+      "type": "string"
+     },
+     "speech_url": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "task_id": {
+      "type": "string"
+     },
+     "cached": {
+      "type": "boolean"
+     },
+     "elapsed_ms": {
+      "type": "integer"
+     }
+    }
+   },
+   "BatchResult": {
+    "type": "object",
+    "properties": {
+     "count": {
+      "type": "integer"
+     },
+     "ok": {
+      "type": "integer"
+     },
+     "failed": {
+      "type": "integer"
+     },
+     "concurrency": {
+      "type": "integer"
+     },
+     "total_duration_ms": {
+      "type": "integer"
+     },
+     "elapsed_ms": {
+      "type": "integer"
+     },
+     "results": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/BatchItem"
+      }
+     }
+    }
+   },
+   "UploadResult": {
+    "type": "object",
+    "properties": {
+     "vid": {
+      "type": "string"
+     },
+     "md5": {
+      "type": "string"
+     },
+     "local_md5": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "format": {
+      "type": "string"
+     },
+     "size": {
+      "type": "integer"
+     },
+     "file_type": {
+      "type": "string"
+     },
+     "store_uri": {
+      "type": "string"
+     }
+    }
+   },
+   "Word": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "start_time": {
+      "type": "integer"
+     },
+     "end_time": {
+      "type": "integer"
+     },
+     "blank_duration": {
+      "type": "integer"
+     }
+    }
+   },
+   "Utterance": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "start_time": {
+      "type": "integer"
+     },
+     "end_time": {
+      "type": "integer"
+     },
+     "words": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Word"
+      }
+     }
+    }
+   },
+   "Subtitles": {
+    "type": "object",
+    "properties": {
+     "utterances": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Utterance"
+      }
+     },
+     "full_text": {
+      "type": "string"
+     },
+     "language": {
+      "type": "string"
+     },
+     "model": {
+      "type": "string"
+     }
+    }
+   },
+   "STTResult": {
+    "type": "object",
+    "properties": {
+     "task_id": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "upload": {
+      "$ref": "#/components/schemas/UploadResult"
+     },
+     "subtitles": {
+      "$ref": "#/components/schemas/Subtitles"
+     },
+     "srt": {
+      "type": "string"
+     },
+     "elapsed_ms": {
+      "type": "integer"
+     }
+    }
+   },
+   "STTCreate": {
+    "type": "object",
+    "required": [
+     "vid",
+     "md5"
+    ],
+    "properties": {
+     "vid": {
+      "type": "string"
+     },
+     "md5": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "language": {
+      "type": "string",
+      "default": "vi-VN"
+     },
+     "translation_language": {
+      "type": "string",
+      "default": "vi-VN"
+     },
+     "use_translation": {
+      "type": "boolean"
+     },
+     "wait": {
+      "type": "boolean",
+      "default": false
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "srt"
+      ]
+     }
+    }
+   },
+   "STTForm": {
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary"
+     },
+     "language": {
+      "type": "string",
+      "default": "vi-VN",
+      "description": "Source language, e.g. vi-VN, en-US, zh-CN"
+     },
+     "translation_language": {
+      "type": "string",
+      "default": "vi-VN"
+     },
+     "use_translation": {
+      "type": "boolean"
+     },
+     "wait": {
+      "type": "boolean",
+      "default": true
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "srt"
+      ],
+      "default": "json"
+     }
+    }
+   }
+  }
+ },
+ "paths": {
+  "/health": {
+   "get": {
+    "summary": "Liveness + cache stats",
+    "tags": [
+     "meta"
+    ],
+    "responses": {
+     "200": {
+      "description": "OK"
+     }
+    }
+   }
+  },
+  "/device": {
+   "get": {
+    "summary": "Active device config",
+    "tags": [
+     "meta"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK"
+     }
+    }
+   }
+  },
+  "/voices": {
+   "get": {
+    "summary": "Voice catalog (embedded Voice.json)",
+    "tags": [
+     "voices"
+    ],
+    "parameters": [
+     {
+      "name": "lang",
+      "in": "query",
+      "required": false,
+      "description": "Filter: vi, vi-VN, en-US …",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "Substring search in name / voice_type / resource_id",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "count": {
+           "type": "integer"
+          },
+          "langs": {
+           "type": "array",
+           "items": {
+            "type": "object"
+           }
+          },
+          "voices": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Voice"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/voices/resolve": {
+   "get": {
+    "summary": "Resolve voice → (voice_type, resource_id)",
+    "tags": [
+     "voices"
+    ],
+    "parameters": [
+     {
+      "name": "voice",
+      "in": "query",
+      "required": false,
+      "description": "voice_type or display name (see /voices). Default BV074_streaming",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "resource_id",
+      "in": "query",
+      "required": false,
+      "description": "Explicit resource id (auto-resolved if omitted)",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK"
+     }
+    }
+   }
+  },
+  "/tts": {
+   "post": {
+    "summary": "Text to speech",
+    "tags": [
+     "tts"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "description": "json | mp3 (overrides body)",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TTSRequest"
+       },
+       "example": {
+        "text": "Xin chào các bạn",
+        "voice": "BV421_vivn_streaming",
+        "rate": 1.0
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "JSON result, or audio/mpeg if format=mp3",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TTSResult"
+        }
+       },
+       "audio/mpeg": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
+     },
+     "202": {
+      "description": "Task created (wait=false)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskCreated"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "summary": "Text to speech (query params; format=mp3 streams audio)",
+    "tags": [
+     "tts"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "text",
+      "in": "query",
+      "required": true,
+      "description": "Text (repeat for multiple segments)",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "voice",
+      "in": "query",
+      "required": false,
+      "description": "voice_type or display name (see /voices). Default BV074_streaming",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "resource_id",
+      "in": "query",
+      "required": false,
+      "description": "Explicit resource id (auto-resolved if omitted)",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "rate",
+      "in": "query",
+      "required": false,
+      "description": "Speech rate 0.2–4.0",
+      "schema": {
+       "type": "string",
+       "example": "1.0"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "description": "json | mp3",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "json",
+        "mp3"
+       ]
+      }
+     },
+     {
+      "name": "wait",
+      "in": "query",
+      "required": false,
+      "description": "false = return task only",
+      "schema": {
+       "type": "boolean"
+      }
+     },
+     {
+      "name": "download",
+      "in": "query",
+      "required": false,
+      "description": "1 = Content-Disposition: attachment",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "no_cache",
+      "in": "query",
+      "required": false,
+      "description": "bypass cache",
+      "schema": {
+       "type": "boolean"
+      }
+     },
+     {
+      "name": "api_key",
+      "in": "query",
+      "required": false,
+      "description": "API key (alternative to header, for <audio src>)",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "JSON or audio/mpeg",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TTSResult"
+        }
+       },
+       "audio/mpeg": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tts/batch": {
+   "post": {
+    "summary": "Many texts concurrently (bounded worker pool, one CapCut task per text)",
+    "tags": [
+     "tts"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BatchRequest"
+       },
+       "example": {
+        "texts": [
+         "Câu một.",
+         "Câu hai."
+        ],
+        "voice": "BV421_vivn_streaming",
+        "concurrency": 8
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Per-item results (in input order)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BatchResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tts/dry-run": {
+   "post": {
+    "summary": "Build the signed CapCut request without sending it (CLI --dry-run)",
+    "tags": [
+     "tts"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TTSRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "url, headers, body"
+     }
+    }
+   }
+  },
+  "/tts/task/{id}": {
+   "get": {
+    "summary": "Query a TTS task (CLI tts-query)",
+    "tags": [
+     "tts"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "token",
+      "in": "query",
+      "required": true,
+      "description": "Task token",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "bind_id",
+      "in": "query",
+      "required": false,
+      "description": "Bind id (optional)",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "raw",
+      "in": "query",
+      "required": false,
+      "description": "include raw CapCut response",
+      "schema": {
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Task status + parsed result"
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/upload": {
+   "post": {
+    "summary": "Upload audio/video to CapCut VOD (CLI upload-audio)",
+    "tags": [
+     "stt"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "file"
+        ],
+        "properties": {
+         "file": {
+          "type": "string",
+          "format": "binary"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "vid / md5 / duration",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "filename": {
+           "type": "string"
+          },
+          "upload": {
+           "$ref": "#/components/schemas/UploadResult"
+          },
+          "elapsed_ms": {
+           "type": "integer"
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/stt": {
+   "post": {
+    "summary": "Speech to text: upload → STT task → poll → subtitles (CLI stt-file)",
+    "tags": [
+     "stt"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/STTForm"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "JSON subtitles (or SRT text if format=srt)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/STTResult"
+        }
+       },
+       "application/x-subrip": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "202": {
+      "description": "Task created (wait=false)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskCreated"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/stt/task": {
+   "post": {
+    "summary": "Create STT task from an uploaded vid/md5 (CLI stt-new)",
+    "tags": [
+     "stt"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/STTCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Subtitles (wait=true)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/STTResult"
+        }
+       }
+      }
+     },
+     "202": {
+      "description": "Task created",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TaskCreated"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/stt/task/{id}": {
+   "get": {
+    "summary": "Query an STT task (CLI stt-query)",
+    "tags": [
+     "stt"
+    ],
+    "security": [
+     {
+      "ApiKey": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "token",
+      "in": "query",
+      "required": true,
+      "description": "Task token",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "bind_id",
+      "in": "query",
+      "required": false,
+      "description": "Bind id",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "description": "json | srt",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "json",
+        "srt"
+       ]
+      }
+     },
+     {
+      "name": "raw",
+      "in": "query",
+      "required": false,
+      "description": "include raw CapCut response",
+      "schema": {
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Status, and subtitles when done"
+     },
+     "400": {
+      "description": "Bad request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Missing/invalid API key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "CapCut upstream error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "Task timed out",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,5 @@
+bin/
+.git/
+*.mp3
+*.wav
+device.json

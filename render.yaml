@@ -1,0 +1,31 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: capcut-tts-go
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Render injects PORT automatically.
+      - key: API_KEY            # leave empty for a public demo; set to require X-API-Key
+        sync: false
+      - key: RATE_LIMIT_RPM
+        value: "60"
+      - key: RATE_LIMIT_BURST
+        value: "20"
+      - key: BATCH_CONCURRENCY
+        value: "8"
+      - key: BATCH_MAX
+        value: "200"
+      - key: CACHE_SIZE
+        value: "2000"
+      - key: CACHE_TTL
+        value: "6h"
+      - key: MAX_UPLOAD_MB
+        value: "25"
+      - key: STT_DEFAULT_LANGUAGE
+        value: vi-VN
+      - key: CAPCUT_DEVICE_JSON  # optional: your own device profile (see device.json.example)
+        sync: false

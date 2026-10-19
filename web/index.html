@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CapCut TTS · Dashboard</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--fg:#e8eaf0;--mut:#8b93a7;--acc:#4f8cff;--ok:#2fbf71;--err:#ff5d5d}
+@media (prefers-color-scheme:light){:root{--bg:#f4f6fa;--card:#fff;--line:#e3e7ef;--fg:#141824;--mut:#5f6b80}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+header h1{font-size:18px;margin:0}header a{color:var(--acc);text-decoration:none;margin-right:10px}
+main{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h2{margin:0 0 12px;font-size:16px}
+label{font-size:13px;color:var(--mut);display:block;margin:10px 0 4px}
+textarea,select,input[type=text],input[type=password],input[type=file]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit}
+textarea{min-height:130px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:640px){.row{grid-template-columns:1fr}}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+button{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--acc);color:#fff}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--line)}button:disabled{opacity:.5;cursor:wait}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border-radius:0;background:transparent;color:var(--fg)}.seg button.on{background:var(--acc);color:#fff}
+.mut{color:var(--mut);font-size:13px}.ok{color:var(--ok)}.err{color:var(--err)}
+audio{width:100%;margin-top:12px}
+.list{display:grid;gap:8px;margin-top:12px}.item{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.item .t{font-size:14px}.item audio{margin-top:6px;height:36px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{border-top:1px solid var(--line);padding:5px 6px;vertical-align:top}td.tm{white-space:nowrap;color:var(--mut);font-variant-numeric:tabular-nums}
+.key{display:flex;gap:6px;align-items:center}.key input{width:180px;padding:6px 8px}
+input[type=range]{width:100%}
+</style>
+</head>
+<body>
+<header>
+ <h1>🎙️ CapCut TTS / STT</h1>
+ <div><a href="/docs" target="_blank">API Docs</a><a href="/openapi.json" target="_blank">OpenAPI</a></div>
+ <div class="key"><span class="mut">API key</span><input id="apikey" type="password" placeholder="(nếu server bật)"></div>
+</header>
+<main>
+<section class="card">
+ <h2>Chuyển văn bản thành giọng nói (TTS)</h2>
+ <div class="seg" id="mode"><button data-m="single" class="on">Một đoạn</button><button data-m="batch">Batch (mỗi dòng 1 đoạn)</button></div>
+ <label for="text">Văn bản</label>
+ <textarea id="text">Xin chào các bạn, hôm nay chúng ta sẽ cùng điểm qua những tin tức nổi bật trong ngày.</textarea>
+ <div class="row">
+  <div><label for="vq">Tìm giọng</label><input id="vq" type="text" placeholder="vd: nữ, review, BV421…"></div>
+  <div><label for="voice">Giọng đọc <span id="vcount" class="mut"></span></label><select id="voice"></select></div>
+ </div>
+ <label>Tốc độ: <b id="rateV">1.0</b>×</label>
+ <input id="rate" type="range" min="0.5" max="2" step="0.05" value="1">
+ <div class="btns">
+  <button id="go">Tạo giọng</button>
+  <button id="merge" class="sec" title="Gộp mọi dòng vào 1 task, trả 1 file MP3">Gộp thành 1 MP3</button>
+  <span id="st" class="mut"></span>
+ </div>
+ <div id="single" hidden><audio id="player" controls></audio><div class="btns"><a id="dl" download="tts.mp3"><button class="sec">⬇ Tải MP3</button></a><span id="meta" class="mut"></span></div></div>
+ <div id="batchOut" hidden><div class="btns"><button id="playAll" class="sec">▶ Phát lần lượt</button><span id="bmeta" class="mut"></span></div><div id="blist" class="list"></div></div>
+</section>
+
+<section class="card">
+ <h2>Nhận dạng giọng nói (STT → phụ đề)</h2>
+ <div class="row">
+  <div><label for="file">File audio / video (≤ 25 MB)</label><input id="file" type="file" accept="audio/*,video/*"></div>
+  <div><label for="lang">Ngôn ngữ nguồn</label><select id="lang">
+   <option value="vi-VN">Tiếng Việt (vi-VN)</option><option value="en-US">English (en-US)</option><option value="zh-CN">中文 (zh-CN)</option>
+   <option value="ja-JP">日本語 (ja-JP)</option><option value="ko-KR">한국어 (ko-KR)</option><option value="th-TH">ไทย (th-TH)</option>
+   <option value="id-ID">Indonesia (id-ID)</option><option value="es-ES">Español (es-ES)</option><option value="pt-BR">Português (pt-BR)</option>
+   <option value="fr-FR">Français (fr-FR)</option><option value="de-DE">Deutsch (de-DE)</option></select></div>
+ </div>
+ <div class="btns"><button id="stt">Nhận dạng</button><span id="sst" class="mut"></span></div>
+ <div id="sttOut" hidden>
+  <label>Văn bản</label><div id="full" class="item"></div>
+  <table id="utt"></table>
+  <label>SRT</label><textarea id="srt" readonly></textarea>
+  <div class="btns"><button id="dlsrt" class="sec">⬇ Tải .srt</button><button id="cpsrt" class="sec">Sao chép</button></div>
+ </div>
+</section>
+<p class="mut" style="text-align:center">Không chính thức · dùng API nội bộ của CapCut · <a href="https://github.com/K07VN/capcut-tts-api" style="color:var(--acc)">port từ capcut-tts-api</a></p>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const keyEl = $('#apikey'); keyEl.value = localStorage.getItem('apikey') || '';
+keyEl.onchange = () => localStorage.setItem('apikey', keyEl.value.trim());
+const H = (extra = {}) => { const h = {...extra}; if (keyEl.value.trim()) h['X-API-Key'] = keyEl.value.trim(); return h; };
+async function api(path, opt = {}) {
+  const r = await fetch(path, {...opt, headers: H(opt.headers || {})});
+  if (!r.ok) { let m = r.status + ''; try { m = (await r.json()).error || m } catch {} throw new Error(m); }
+  return r;
+}
+const fmt = ms => { const s = ms / 1000; return s.toFixed(s < 10 ? 2 : 1) + 's'; };
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// voices
+let VOICES = [];
+const LANGN = {'vi-VN':'Tiếng Việt','en-US':'English','ja-JP':'日本語','zh-CN':'中文','es-ES':'Español','th-TH':'ไทย','id-ID':'Indonesia','pt-BR':'Português','fr-FR':'Français','de-DE':'Deutsch'};
+function renderVoices() {
+  const q = $('#vq').value.trim().toLowerCase(), sel = $('#voice'), cur = sel.value || localStorage.getItem('voice') || 'BV421_vivn_streaming';
+  const groups = {};
+  VOICES.filter(v => !q || (v.display_name + ' ' + v.voice_type + ' ' + v.lang).toLowerCase().includes(q))
+        .forEach(v => (groups[v.lang] = groups[v.lang] || []).push(v));
+  const order = Object.keys(groups).sort((a, b) => (b === 'vi-VN') - (a === 'vi-VN') || groups[b].length - groups[a].length);
+  sel.innerHTML = order.map(l => `<optgroup label="${esc(LANGN[l] || l)} (${groups[l].length})">` +
+    groups[l].sort((a, b) => a.display_name.localeCompare(b.display_name, 'vi')).map(v =>
+      `<option value="${esc(v.voice_type)}">${esc(v.display_name)}</option>`).join('') + '</optgroup>').join('');
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  $('#vcount').textContent = `(${sel.options.length})`;
+}
+fetch('/voices').then(r => r.json()).then(d => { VOICES = d.voices; renderVoices(); }).catch(e => $('#st').textContent = 'Lỗi tải giọng: ' + e.message);
+$('#vq').oninput = renderVoices;
+$('#voice').onchange = () => localStorage.setItem('voice', $('#voice').value);
+$('#rate').oninput = () => $('#rateV').textContent = (+$('#rate').value).toFixed(2).replace(/0$/, '');
+
+let mode = 'single';
+document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
+  mode = b.dataset.m; document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b));
+});
+const lines = () => $('#text').value.split('\n').map(s => s.trim()).filter(Boolean);
+const busy = (on, ...ids) => ids.forEach(i => $(i).disabled = on);
+let lastURL;
+
+async function single(texts) {
+  const st = $('#st'), t0 = performance.now();
+  st.className = 'mut'; st.textContent = 'Đang tạo…'; busy(true, '#go', '#merge');
+  try {
+    const r = await api('/tts', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: texts, voice: $('#voice').value, rate: +$('#rate').value, format: 'mp3'})});
+    const blob = await r.blob();
+    if (lastURL) URL.revokeObjectURL(lastURL);
+    lastURL = URL.createObjectURL(blob);
+    $('#player').src = lastURL; $('#dl').href = lastURL;
+    $('#dl').download = ($('#voice').selectedOptions[0]?.text || 'tts').replace(/\s+/g, '_') + '.mp3';
+    $('#single').hidden = false; $('#batchOut').hidden = true; $('#player').play().catch(() => {});
+    $('#meta').textContent = `${fmt(+r.headers.get('X-Duration-Ms') || 0)} audio · ${(blob.size / 1024).toFixed(0)} KB · cache ${r.headers.get('X-Cache') || '-'}`;
+    st.className = 'ok'; st.textContent = `Xong trong ${fmt(performance.now() - t0)}`;
+  } catch (e) { st.className = 'err'; st.textContent = 'Lỗi: ' + e.message; }
+  busy(false, '#go', '#merge');
+}
+
+async function batch(texts) {
+  const st = $('#st'), t0 = performance.now();
+  st.className = 'mut'; st.textContent = `Đang tạo ${texts.length} đoạn…`; busy(true, '#go', '#merge');
+  try {
+    const d = await (await api('/tts/batch', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({texts, voice: $('#voice').value, rate: +$('#rate').value})})).json();
+    $('#blist').innerHTML = d.results.map(it => `<div class="item"><div class="t"><b>#${it.index + 1}</b> ${esc(it.text)}</div>` +
+      (it.ok ? `<audio controls preload="none" src="${esc(it.speech_url)}"></audio><div class="mut">${fmt(it.duration_ms)} · ${it.cached ? 'cache' : fmt(it.elapsed_ms)} · <a href="${esc(it.speech_url)}" target="_blank" style="color:var(--acc)">mở MP3</a></div>`
+             : `<div class="err">${esc(it.error || 'lỗi')}</div>`) + '</div>').join('');
+    $('#bmeta').textContent = `${d.ok}/${d.count} OK · tổng ${fmt(d.total_duration_ms)} audio · song song ${d.concurrency}`;
+    $('#batchOut').hidden = false; $('#single').hidden = true;
+    st.className = d.failed ? 'err' : 'ok'; st.textContent = `Xong trong ${fmt(performance.now() - t0)}`;
+  } catch (e) { st.className = 'err'; st.textContent = 'Lỗi: ' + e.message; }
+  busy(false, '#go', '#merge');
+}
+
+$('#go').onclick = () => { const t = lines(); if (!t.length) return; mode === 'batch' ? batch(t) : single([t.join(' ')]); };
+$('#merge').onclick = () => { const t = lines(); if (t.length) single(t); };
+$('#playAll').onclick = () => {
+  const as = [...document.querySelectorAll('#blist audio')]; if (!as.length) return;
+  as.forEach((a, i) => a.onended = () => as[i + 1] && as[i + 1].play()); as[0].play();
+};
+
+// STT
+let lastSRT = '';
+const ts = ms => new Date(ms).toISOString().substr(11, 12).replace('.', ',');
+$('#stt').onclick = async () => {
+  const f = $('#file').files[0], st = $('#sst'); if (!f) { st.textContent = 'Chọn file trước'; return; }
+  const fd = new FormData(); fd.append('file', f); fd.append('language', $('#lang').value);
+  const t0 = performance.now(); st.className = 'mut'; st.textContent = 'Đang tải lên & nhận dạng…'; busy(true, '#stt');
+  try {
+    const d = await (await api('/stt', {method: 'POST', body: fd})).json();
+    $('#full').textContent = d.subtitles.full_text || '(trống)';
+    $('#utt').innerHTML = d.subtitles.utterances.map(u => `<tr><td class="tm">${ts(u.start_time)} → ${ts(u.end_time)}</td><td>${esc(u.text)}</td></tr>`).join('');
+    lastSRT = d.srt; $('#srt').value = d.srt; $('#sttOut').hidden = false;
+    st.className = 'ok'; st.textContent = `${d.subtitles.utterances.length} câu · ${fmt(d.upload.duration_ms)} audio · xong trong ${fmt(performance.now() - t0)}`;
+  } catch (e) { st.className = 'err'; st.textContent = 'Lỗi: ' + e.message; }
+  busy(false, '#stt');
+};
+$('#dlsrt').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lastSRT], {type: 'application/x-subrip'}));
+  a.download = (($('#file').files[0]?.name || 'transcript').replace(/\.[^.]+$/, '')) + '.srt'; a.click(); };
+$('#cpsrt').onclick = () => navigator.clipboard.writeText(lastSRT);
+</script>
+</body>
+</html>
